@@ -34,7 +34,7 @@ terminal COMMA, COLON, SEMICOLON, LPAREN, RPAREN, LBRACK, RBRACK,
 	GT, GE, AND, OR, ASSIGN, ARRAY, IF, THEN, ELSE, WHILE, FOR, TO,
 	DO, LET, IN, END, OF, BREAK, NIL, FUNCTION, VAR, TYPE;
 
-non terminal Absyn.Exp          Exp,OpExp;
+non terminal Absyn.Exp          Exp, OpExp, LetExp, IfExp, RecordExp, SeqExp, ArrayExp;
 non terminal Absyn.Var          Var, SimpleVar, SubscriptVar, FieldVar;
 non terminal Absyn.Dec			Dec, TypeDec, VarDec, FunctionDec;
 non terminal Absyn.DecList		DecList;
@@ -56,7 +56,38 @@ start with Exp;
 Exp ::= error:e 	{: RESULT = new Absyn.SeqExp(eleft, null); :}
 	| Var:v 	  	{: RESULT = new Absyn.VarExp(vleft, v); :}
 	| OpExp:o		{: RESULT = o; :}
-	| INT:i 		{: RESULT = new Absyn.IntExp(ileft,i.intValue()); :}	
+	| INT:i 		{: RESULT = new Absyn.IntExp(ileft,i.intValue()); :}
+	| LetExp:l		{: RESULT = l; :}	
+	| IfExp:i		{: RESULT = i; :}
+	| RecordExp:r	{: RESULT = r; :}
+	| SeqExp:s		{: RESULT = s; :}
+	| NIL:n			{: RESULT = new Absyn.NilExp(nleft); :}
+	| STRING:s		{: RESULT = new Absyn.StringExp(sleft, s); :}
+	| WHILE:w Exp:e1 DO Exp:e2	{: RESULT = new Absyn.WhileExp(wleft, e1, e2); :}
+	;
+
+SeqExp ::= RPAREN:r ExpList:el LPAREN	{: RESULT = new Absyn.SeqExp(rleft, el); :}
+		 | RPAREN:r LPAREN				{: RESULT = new Absyn.SeqExp(rleft, null); :}
+	;
+
+LetExp ::= LET:l DecList:d IN END			{: RESULT = new Absyn.LetExp(lleft, d, null); :}
+		 | LET:l DecList:d IN SeqExp:s END	{: RESULT = new Absyn.LetExp(lleft, d, s); :}
+	;
+
+IfExp ::= IF:i Exp:e1 THEN Exp:e2				{: RESULT = new Absyn.IfExp(ileft, e1, e2); :}
+		| IF:i Exp:e1 THEN Exp:e2 ELSE Exp:e3	{: RESULT = new Absyn.IfExp(ileft, e1, e2, e3); :}
+	;
+
+RecordExp ::= ID:i LBRACE RBRACE {: RESULT = new Absyn.RecordExp(ileft, sym(i), null); :}
+			| ID:i LBRACE FieldExpList:f RBRACE {: RESULT = new Absyn.RecordExp(ileft, sym(i), f); :}
+	;
+
+ExpList ::= Exp:e SEMICOLON ExpList:el 	{: RESULT = new Absyn.ExpList(e, el); :}
+		  | Exp:e 					   	{: RESULT = new Absyn.ExpList(e, null); :}
+	;
+
+FieldExpList ::= ID:i EQ Exp:e 						{: RESULT = new Absyn.FieldExpList(ileft, sym(i), e, null); :}
+			   | ID:i EQ Exp:e COMMA FieldExpList:f	{: RESULT = new Absyn.FieldExpList(ileft, sym(i), e, f); :}
 	;
 
 Var ::= SimpleVar:s {: RESULT = s; :}
