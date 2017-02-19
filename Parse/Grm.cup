@@ -34,13 +34,13 @@ terminal COMMA, COLON, SEMICOLON, LPAREN, RPAREN, LBRACK, RBRACK,
 	GT, GE, AND, OR, ASSIGN, ARRAY, IF, THEN, ELSE, WHILE, FOR, TO,
 	DO, LET, IN, END, OF, BREAK, NIL, FUNCTION, VAR, TYPE;
 
-non terminal Absyn.Exp          Exp, OpExp, LetExp, IfExp, RecordExp, SeqExp, ArrayExp;
+non terminal Absyn.Exp          Exp, OpExp, LetExp, IfExp, RecordExp, SeqExp, CallExp;
 non terminal Absyn.Var          Var, SimpleVar, SubscriptVar, FieldVar;
 non terminal Absyn.Dec			Dec, TypeDec, VarDec, FunctionDec;
 non terminal Absyn.DecList		DecList;
 non terminal Absyn.FieldList	FieldList;
 non terminal Absyn.FieldExpList	FieldExpList;
-non terminal Absyn.ExpList	    ExpList;
+non terminal Absyn.ExpList	    ExpList, SeqList;
 non terminal Absyn.Ty			Ty, NameTy, RecordTy, ArrayTy;
 
 precedence left ELSE;
@@ -64,10 +64,21 @@ Exp ::= error:e 	{: RESULT = new Absyn.SeqExp(eleft, null); :}
 	| NIL:n			{: RESULT = new Absyn.NilExp(nleft); :}
 	| STRING:s		{: RESULT = new Absyn.StringExp(sleft, s); :}
 	| WHILE:w Exp:e1 DO Exp:e2	{: RESULT = new Absyn.WhileExp(wleft, e1, e2); :}
+	| ID:i LBRACK Exp:e1 RBRACK OF Exp:e2 {: RESULT = new Absyn.ArrayExp(ileft, sym(i), e1, e2); :}
+	| CallExp:c 	{: RESULT = c; :}
+	| BREAK:b 		{: RESULT = new Absyn.BreakExp(bleft); :}
 	;
 
-SeqExp ::= RPAREN:r ExpList:el LPAREN	{: RESULT = new Absyn.SeqExp(rleft, el); :}
-		 | RPAREN:r LPAREN				{: RESULT = new Absyn.SeqExp(rleft, null); :}
+CallExp ::= ID:i RPAREN LPAREN 				{: RESULT = new Absyn.CallExp(ileft, sym(i), null); :}
+		  | ID:i RPAREN ExpList:el RPAREN 	{: RESULT = new Absyn.CallExp(ileft, sym(i), el); :}
+	;
+
+ExpList ::= Exp:e					{: RESULT = new Absyn.ExpList(e, null); :}
+		  | Exp:e COMMA ExpList:el 	{: RESULT = new Absyn.ExpList(e, el); :}
+	;
+
+SeqExp ::= RPAREN:r LPAREN				{: RESULT = new Absyn.SeqExp(rleft, null); :}
+		 | RPAREN:r SeqList:sl LPAREN	{: RESULT = new Absyn.SeqExp(rleft, sl); :}
 	;
 
 LetExp ::= LET:l DecList:d IN END			{: RESULT = new Absyn.LetExp(lleft, d, null); :}
@@ -82,7 +93,7 @@ RecordExp ::= ID:i LBRACE RBRACE {: RESULT = new Absyn.RecordExp(ileft, sym(i), 
 			| ID:i LBRACE FieldExpList:f RBRACE {: RESULT = new Absyn.RecordExp(ileft, sym(i), f); :}
 	;
 
-ExpList ::= Exp:e SEMICOLON ExpList:el 	{: RESULT = new Absyn.ExpList(e, el); :}
+SeqList ::= Exp:e SEMICOLON SeqList:el 	{: RESULT = new Absyn.ExpList(e, el); :}
 		  | Exp:e 					   	{: RESULT = new Absyn.ExpList(e, null); :}
 	;
 
