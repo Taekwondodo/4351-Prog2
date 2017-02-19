@@ -35,9 +35,13 @@ terminal COMMA, COLON, SEMICOLON, LPAREN, RPAREN, LBRACK, RBRACK,
 	DO, LET, IN, END, OF, BREAK, NIL, FUNCTION, VAR, TYPE;
 
 non terminal Absyn.Exp          Exp,OpExp;
-non terminal Absyn.Var          Var;
-non terminal Absyn.Dec			Dec;
+non terminal Absyn.Var          Var, SimpleVar, SubscriptVar, FieldVar;
+non terminal Absyn.Dec			Dec, TypeDec, VarDec, FunctionDec;
 non terminal Absyn.DecList		DecList;
+non terminal Absyn.FieldList	FieldList;
+non terminal Absyn.FieldExpList	FieldExpList;
+non terminal Absyn.ExpList	    ExpList;
+non terminal Absyn.Ty			Ty, NameTy, RecordTy, ArrayTy;
 
 precedence left ELSE;
 precedence left OR;
@@ -53,11 +57,20 @@ Exp ::= error:e 	{: RESULT = new Absyn.SeqExp(eleft, null); :}
 	| Var:v 	  	{: RESULT = new Absyn.VarExp(vleft, v); :}
 	| OpExp:o		{: RESULT = o; :}
 	| INT:i 		{: RESULT = new Absyn.IntExp(ileft,i.intValue()); :}	
-	
 	;
 
-Var ::=   ID:n
-	  {: RESULT = new Absyn.SimpleVar(nleft, sym(n)); :}
+Var ::= SimpleVar:s {: RESULT = s; :}
+	  | SubscriptVar:s {: RESULT = s; :}
+	  | FieldVar: s {: RESULT = s; :}
+	;
+
+SimpleVar ::= ID:i {: RESULT = new Absyn.SimpleVar(ileft, sym(i)); :}
+	;
+
+SubscriptVar ::= Var:v LBRACK Exp:e RBRACK {: RESULT = new Absyn.SubscriptVar(vleft, v, e); :}
+	;
+
+FieldVar ::= Var:v DOT ID:i {: RESULT = new Absyn.FieldVar(vleft, v, sym(i)); :}
 	;
 
 
@@ -76,3 +89,70 @@ OpExp ::= Exp:e1 OR Exp:e2		{: RESULT = new Absyn.IfExp(e1left,e1, new Absyn.Int
 		| MINUS:n Exp:e 		{: RESULT = new Absyn.OpExp(nleft,
 								   new Absyn.IntExp(nleft,0),Absyn.OpExp.MINUS,e); :}
 		;	
+
+DecList ::= Dec:d 				{: RESULT = new Absyn.DecList(d, null); :}
+		  | Dec:d DecList:dl	{: RESULT = new Absyn.DecList(d, dl); :}
+		  ;
+
+Dec ::= TypeDec:t 				{: RESULT = t; :}
+	  | VarDec:v				{: RESULT = v; :}
+	  | FunctionDec:f 			{: RESULT = f; :}
+	  ;
+
+VarDec ::= VAR:v ID:i ASSIGN Exp:e				{: RESULT = new Absyn.VarDec(vleft,sym(i),null,e); :}
+	     | VAR:v ID:i COLON ID:i2 ASSIGN Exp:e	{: RESULT = new Absyn.VarDec(vleft,sym(i),
+		 										   new Absyn.NameTy(i2left,sym(i2)),e); :}
+		 ;
+
+FunctionDec ::= FUNCTION:n ID:i LPAREN RPAREN EQ Exp:e
+				{: RESULT = new Absyn.FunctionDec(nleft,sym(i),null,null,e,null); :}
+			  |FUNCTION:n ID:i1 LPAREN RPAREN COLON ID:i2 EQ Exp:e
+				{: RESULT = new Absyn.FunctionDec(nleft,sym(i1),null,
+					new Absyn.NameTy(i2left,sym(i2)),e,null); :}
+			  | FUNCTION ID:i LPAREN FieldList:f RPAREN EQ Exp:e 
+				{: RESULT = new Absyn.FunctionDec(ileft,sym(i),f,null,e,null); :}
+			  | FUNCTION ID:i LPAREN FieldList:f RPAREN COLON ID:i2 EQ Exp:e 
+				{: RESULT = new Absyn.FunctionDec(ileft,sym(i),f,new Absyn.NameTy(i2left,sym(i2)),e,null); :}
+			;
+
+FieldList ::= ID:i COLON ID:i2 {: RESULT = new Absyn.FieldList(ileft,sym(i),sym(i2),null); :}
+		    | ID:i COLON ID:i2 COMMA FieldList:f {: RESULT = new Absyn.FieldList(ileft,sym(i),sym(i2),f); :}
+			;
+
+TypeDec ::= TYPE ID:i EQ Ty:t  {: RESULT = new Absyn.TypeDec(ileft,sym(i),t,null); :}
+			;
+						
+Ty ::= NameTy:n					{: RESULT = n; :}
+	 | RecordTy:r 				{: RESULT = r; :}
+	 | ArrayTy:a 				{: RESULT = a; :}
+	 ;
+
+NameTy ::= ID:i					{: RESULT = new Absyn.NameTy(ileft, sym(i)); :}
+		;
+
+RecordTy ::= LBRACE FieldList:f RBRACE {: RESULT = new Absyn.RecordTy(fleft, f); :}
+		;
+
+ArrayTy ::= ARRAY OF ID:i			{: RESULT = new Absyn.ArrayTy(ileft, sym(i)); :}
+	   ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
